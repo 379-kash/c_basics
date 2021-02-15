@@ -3,6 +3,7 @@
 import rospy
 import math
 from sensor_msgs.msg import NavSatFix, LaserScan, Imu
+from std_msgs.msg import String
 
 
 class PathPlanner():
@@ -15,7 +16,23 @@ class PathPlanner():
         self.destination = [0, 0, 0]
         # Converting latitude and longitude in meters for calculation
         self.destination_xy = [0, 0]
-
+        
+        #*******************************************opt********************************#
+        self.sudo_destination_reach=False#checking if its reached at the destination which is for delevery in csv file
+        self.desired_destination=[0,0,0]#giving it to the threshould box if it has found marker
+        #above 2 will being erased:::::)
+        self.img_data=[0,0]#data which will come from the maeker_detect.py script
+        self.pause_process=False#it will helpful to stop taking the data form the marker_detect and focus on destination reach
+        self.reach_flag=False#for reaching at every position which is require threshould box
+        self.pick=True#for deciding wather to pick or drop a box
+        self.status="D"#it will be either "delevery" or "returns"
+        self.pick_drop_box=False
+        self.msg_from_marker_find=False
+        self.cnt=0
+        self.destination_list=[[18.9999864489,71.9999430161,8.44099749139],
+                               [18.9993676146,71.9999999999,10.854960]]
+        #*******************************************opt********************************#
+        
         # Present Location of the DroneNote
         self.current_location = [0, 0, 0]
         # Converting latitude and longitude in meters for calculation
@@ -44,6 +61,7 @@ class PathPlanner():
 
         # Publisher
         self.pub_checkpoint = rospy.Publisher('/checkpoint', NavSatFix, queue_size=1)
+        self.grip_flag=rospy.Publisher('/gripp_flag',String,queue_size=1)
 
         # Subscriber
         rospy.Subscriber('/final_setpoint', NavSatFix, self.final_setpoint_callback)
@@ -86,11 +104,25 @@ class PathPlanner():
         slope = dist_z / (self.distance_xy - 3)
         self.checkpoint.altitude = self.current_location[2] + (slope * dist_z)
 
+    def threshould_box(self):
+
+        if -0.000010217 <= (self.destination[0]-self.current_location[0]) <= 0.000010217:
+            if -0.0000037487 <= (self.destination[0]-self.current_location[1])<= 0.0000037487:
+                self.pick_drop_box=True
+                if(self.pause_process):
+                    self.msg_from_marker_find=True
+                if (-0.1<= (self.destination[2]-self.current_location[2]) <= 0.1):
+                    self.reach_flag=True
+                    if(self.cnt<2):
+                        self.cnt+=1
+                    
+
+
 
     def obstacle_avoid(self):
         '''For Processing the obtained sensor data and publishing required
         checkpoint for avoiding obstacles'''
-
+        self.destination=self.destination_list[self.cnt]
         if self.destination == [0, 0, 0]:
             return
 
@@ -139,16 +171,61 @@ class PathPlanner():
         # setting the values to publish
         self.checkpoint.latitude = self.current_location[0] - self.x_to_lat_diff(self.movement_in_plane[0])
         self.checkpoint.longitude = self.current_location[1] - self.y_to_long_diff(self.movement_in_plane[1])
-        self.checkpoint.altitude = 24
+        if(math.hypot((self.destination[0]-self.current_location[0]),(self.destination[1]-self.current_location[1]))<=6 and self.pick):
+            self.checkpoint.altitude=self.destination[2]+2
+        else:
+            self.checkpoint.altitude = 24
         # self.altitude_control()
 
         # Publishing
         self.pub_checkpoint.publish(self.checkpoint)
 
+    def marker_find(self):
+
+        # if(not self.sudo_destination_reach):
+        #     if(self.img_data!=[0,0] and (not self.pause_process)):
+        #         self.destination=[self.current_location[0]+self.x_to_lat_diff(self.img_data[0]),self.current_location[1]+self.y_to_long_diff(self.img_data[1])]
+        #         self.pause_process=True
+        # elif(self.sudo_destination_reach):
+        if(self.img_data==[0,0] and (not self.pause_process)):
+            self.checkpoint.altitude=self.current_location[2]+4
+        elif(self.img_data!=[0,0] and (not self.pause_process)):
+            self.destination=[self.current_location[0]+self.x_to_lat_diff(self.img_data[0]),self.current_location[1]+self.y_to_long_diff(self.img_data[1])]
+            self.pause_process=True
+
+    def pick_n_drop(self):
+        self.checkpoint.altitude=self.destination[2]
+        self.pub_checkpoint.publish(self.checkpoint)
+        if(self.reach_flag):
+            if(self.pick):
+                self.grip_flag.publish('True')
+                self.pick=False
+            else:
+                self.grip_flag.publish('False')
+                self.pick=True
+            self.reach_flag=False#not self.reach_flag
+            self.pick_drop_box=False
+            
+
+        pass
 
 if __name__ == "__main__":
     planner = PathPlanner()
     rate = rospy.Rate(1/planner.sample_time)
     while not rospy.is_shutdown():
+        if(planner.status=="D"):
+            if(not planner.pick_drop_box):
+                planner.obstacle_avoid()
+            elif(planner.pick_drop_box):
+                if(planner.pick or planner.msg_from_marker_find):
+                    planner.pick_n_drop()
+                elif(not planner.pick or not planner.msg_from_marker_find):
+                    planner.marker_find()
+        elif(planner.status=="R"):
+            if(planner.pick_drop_box):
+                planner.obstacle_avoid()
+            elif(not planner.pick_drop_box):
+                planner.pick_n_drop()
+
         planner.obstacle_avoid()
         rate.sleep()
