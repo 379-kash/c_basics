@@ -7,6 +7,7 @@ This node publishes and subsribes the following topics:
         /checkpoint             /marker_data
 
 '''
+#sheduler
 
 import rospy
 import math
