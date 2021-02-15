@@ -33,7 +33,7 @@ class Data_processing():
         self.diff_grid = [0.000013552, 0.000014245]
 
         self.sample_time = 1
-
+        self.read_and_set_data()
         self.checkpoint = NavSatFix()
 
         # Publishing
@@ -42,7 +42,7 @@ class Data_processing():
     def long_to_y_diff(self,ip_long_diff):return (-105292.0089353767*ip_long_diff)
     # float(buff_coordinate[0]))
 
-    def read_data(self):
+    def read_and_set_data(self):
         if(self.cnt==0):
             check_list=[]
             cnt=0
@@ -133,10 +133,11 @@ class Data_processing():
                 print(self. coordinates[u])
             print(len(self.coordinates))
             self.cnt+=1
-
+    def data_publish(self):
+        pass
 if __name__ == "__main__":
     reader = Data_processing()
     rate = rospy.Rate(1/reader.sample_time)
     while not rospy.is_shutdown():
-        reader.read_data()
+        reader.data_publish()
         rate.sleep()
