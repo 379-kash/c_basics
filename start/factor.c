@@ -1,11 +1,14 @@
 #include<stdio.h>
 int main(){
-    int x=10;
+    int x=0;
     float c=0;
-    for(int i=x-1;i>1;i--){
+    printf("enter one number\n");
+    scanf("%d",&x);
+    printf("factors of your number are/is\n");
+    for(int i=((x/2)+1);i>0;i--){
         
         if(x%i==0){
-            printf("%d",i);
+            printf("%d\n",i);
         } 
     }
     

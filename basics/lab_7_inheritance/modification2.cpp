@@ -36,7 +36,8 @@ float Z::multiply()
 
 int main(){
     Z i;
-    cout<<i.make_aa( )<<endl;
-    cout<<i.multiply();
+    // cout<<i.make_aa( )<<endl;
+    // cout<<i.multiply();
+    cout<<"size of class z is: "<<sizeof(Z)<<endl;
     return 0;
 }

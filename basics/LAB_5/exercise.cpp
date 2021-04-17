@@ -14,7 +14,7 @@ class Distance
         Distance(int a,int b):mts(a),cms(b){}
         Distance  operator --(int){
             mts--;
-            if(mts>=0){dify the above mo
+            if(mts>=0){
                 cout<<"new distande is"<<mts<<endl;
                 cms+=100;
             }
